@@ -1,0 +1,86 @@
+#I used this to read straight from the pdf-s issued by Bank, the amounts relevant for tax reporting:
+
+import re
+import pandas as pd
+
+# Sample new text
+text = """
+18 Jan 24 VIS PAYPAL *TEMU
+35314369001 0.80
+VIS PAYPAL *TEMU
+35314369001 1.03 1012.07
+19 Jan 24 CR SCENETICA LTD
+1598832237 1039.70 1012.07
+22 Jan 24 BP LONDON HOUSING
+TODI1005/04 800.00
+))) CTYLINK
+BUS TICKET 2.00
+"""
+
+# Pattern to capture Date and Details
+pattern_date_details = r"(\d{2} \w{3} \d{2})\s+([^\d\n]+)"
+
+# Updated pattern for Paid_Out: look for numbers that could be separated by line breaks and additional spaces
+pattern_paid_out = r"(\d{2} \w{3} \d{2})\s+[^\d\n]+[\s\S]*?(\d+\.\d{2})\s*(?![\d.])"
+
+# Updated pattern for Paid_In and Balance (handle optional values)
+pattern_paid_in_balance = r"(\d{2} \w{3} \d{2})\s+[^\d\n]+[\s\S]*?(\d+\.\d{2})\s+(\d+\.\d{2})?"
+
+# Capture Date and Details
+matches_date_details = re.finditer(pattern_date_details, text)
+data_date_details = [
+    {
+        "Date": match.group(1),
+        "Details": match.group(2).strip()
+    }
+    for match in matches_date_details
+]
+
+# Capture Paid_Out
+matches_paid_out = re.finditer(pattern_paid_out, text)
+data_paid_out = [
+    {
+        "Date": match.group(1),
+        "Paid_Out": match.group(2)
+    }
+    for match in matches_paid_out
+]
+
+# Capture Paid_In and Balance
+matches_paid_in_balance = re.finditer(pattern_paid_in_balance, text)
+data_paid_in_balance = [
+    {
+        "Date": match.group(1),
+        "Paid_In": match.group(2) if match.group(2) else None,
+        "Balance": match.group(3) if match.group(3) else None
+    }
+    for match in matches_paid_in_balance
+]
+
+# Print out the dictionaries before converting to DataFrame for debugging
+print("Date and Details Data:")
+for entry in data_date_details:
+    print(entry)
+
+print("\nPaid_Out Data:")
+for entry in data_paid_out:
+    print(entry)
+
+print("\nPaid_In and Balance Data:")
+for entry in data_paid_in_balance:
+    print(entry)
+
+# Convert to DataFrames
+df_date_details = pd.DataFrame(data_date_details)
+df_paid_out = pd.DataFrame(data_paid_out)
+df_paid_in_balance = pd.DataFrame(data_paid_in_balance)
+
+# Display DataFrames
+print("\nDataFrame - Date and Details:")
+print(df_date_details)
+
+print("\nDataFrame - Paid_Out:")
+print(df_paid_out)
+
+print("\nDataFrame - Paid_In and Balance:")
+print(df_paid_in_balance)
