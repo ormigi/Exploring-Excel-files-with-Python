@@ -1,0 +1,65 @@
+# I used this to create a quick view of my income, when reporting tax. 
+
+import os
+import pandas as pd
+from datetime import datetime
+
+# Function to process Excel files and extract payments
+def extract_payments(folder_path, start_date, end_date):
+    payment_data = []
+
+    # Loop through all files in the folder
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
+            file_path = os.path.join(folder_path, file_name)
+
+            try:
+                # Read the Excel file
+                excel_data = pd.ExcelFile(file_path)
+
+                for sheet_name in excel_data.sheet_names:
+                    df = excel_data.parse(sheet_name)
+
+                    # Ensure required columns are present (adjust based on actual file structure)
+                    if {'Date', 'Name', 'Amount'}.issubset(df.columns):
+                        df = df[['Date', 'Name', 'Amount']]
+
+                        # Handle multi-row names (combine consecutive rows for Name column if necessary)
+                        df['Name'] = df['Name'].fillna(method='ffill')
+
+                        # Convert 'Date' column to datetime and filter by date range
+                        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+                        df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+
+                        # Append to payment_data
+                        payment_data.append(df)
+
+            except Exception as e:
+                print(f"Error processing file {file_name}: {e}")
+
+    # Combine all dataframes
+    if payment_data:
+        combined_data = pd.concat(payment_data, ignore_index=True)
+
+        # Group by month and name, summing up the amounts
+        combined_data['Month'] = combined_data['Date'].dt.to_period('M')
+        summary = combined_data.groupby(['Month', 'Name'])['Amount'].sum().reset_index()
+
+        return combined_data, summary
+    else:
+        print("No payment data found.")
+        return pd.DataFrame(), pd.DataFrame()
+
+# Specify folder path and date range
+folder_path = "path_to_extracted_files"  # Replace with the folder containing Excel files
+start_date = datetime(2023, 4, 4)
+end_date = datetime(2024, 4, 5)
+
+# Extract payments
+all_payments, summary_table = extract_payments(folder_path, start_date, end_date)
+
+# Save results to Excel
+all_payments.to_excel("all_payments.xlsx", index=False)
+summary_table.to_excel("summary_table.xlsx", index=False)
+
+print("Payment extraction completed. Results saved to 'all_payments.xlsx' and 'summary_table.xlsx'.")
